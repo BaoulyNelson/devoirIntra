@@ -23,23 +23,52 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# annal cheche fichye a
-df = pd.read_csv('company.csv')
+# annal chaje fichye a
+file_path = 'company.csv'
+df = pd.read_csv(file_path)
 
-# Verifye valeur ki manke yo
-print(df.isnull().sum())
+#konveti sale a an string majiskil
+df['salary'] = df['salary'].str.upper()
 
-# Remplir les valeurs manquantes pour 'gender' par le mode (valeur la plus fréquente)
-df['gender'] = df['gender'].fillna(df['gender'].mode()[0])
+#fonksyon pou retirer vigil ak let k nan sale a
+def convert_salary(salary):
+    if pd.isna(salary):
+        return salary
+    salary = salary.upper().replace(',', '') 
+    if 'K' in salary:
+        return float(salary.replace('K', '')) * 1000
+    return float(salary)
 
-# nou konveti kolon hired_date en type datetime
-df['hired_date'] = pd.to_datetime(df['hired_date'], format='%d-%m-%Y', errors='coerce')
+#aplike fonksyon an la
+df['salary'] = df['salary'].apply(convert_salary)
+df['salary'] = df['salary'].astype('Float64')
 
-# nou konveti 'salary' en format nimerik 
-df['salary'] = df['salary'].replace(r'[\$,K]', '', regex=True).astype(float)
+#Siprime liy vid
+df.dropna(inplace=True)
 
-# nou konveti years_at_company en format nimerik
-df['years_at_company'] = df['years_at_company'].replace(r'[^0-9]', '', regex=True).astype(float)
+# konveti kolonn sale an float
+df['salary'] = pd.to_numeric(df['salary'], errors='coerce')
+
+
+# retire mot year la nn kolonn years_at_company
+df['years_at_company'] = df['years_at_company'].str.replace(r'\D+', '', regex=True)
+
+#ranplase ak mete an majiskil vale ki nan kolonn gender pa m ou f
+df['gender'] = df['gender'].str.upper()
+df['gender'] = df['gender'].replace({'MALE': 'M', 'FEMALE': 'F'})
+
+#konveti dat lan en 4 foma diferan ak kolon tampore
+df['hired_date_1'] = pd.to_datetime(df['hired_date'], format='%d-%b-%y', errors='coerce')
+df['hired_date_2'] = pd.to_datetime(df['hired_date'], format='%d-%b-%Y', errors='coerce')
+df['hired_date_3'] = pd.to_datetime(df['hired_date'], format='%d-%m-%Y', errors='coerce')
+df['hired_date_4'] = pd.to_datetime(df['hired_date'], format='%d-%m-%y', errors='coerce')
+
+#konbine rezilta 4 kovesyon yo
+df['hired_date'] = df['hired_date_1'].combine_first(df['hired_date_2']).combine_first(df['hired_date_3']).combine_first(df['hired_date_4'])
+#siprime kolon tanpore
+df.drop(columns=['hired_date_1', 'hired_date_2', 'hired_date_3', 'hired_date_4'], inplace=True)
+# fomate kolon lan an jou,mw ak ane
+df['hired_date'] = df['hired_date'].dt.strftime('%d-%m-%Y')
 
 # nou verifye ak konveti lot kolon si sa nesese
 df['age'] = pd.to_numeric(df['age'], errors='coerce')
@@ -47,111 +76,95 @@ df['job_satisfaction'] = pd.to_numeric(df['job_satisfaction'], errors='coerce')
 df['performance_score'] = pd.to_numeric(df['performance_score'], errors='coerce')
 df['last_promotion_year'] = pd.to_numeric(df['last_promotion_year'], errors='coerce')
 
-# Remplir les valeurs manquantes pour 'salary' et 'education_level' par une méthode appropriée
-df['salary'] = df['salary'].fillna(df['salary'].median())
-df['education_level'] = df['education_level'].fillna('Unknown')
-
-# nou reveriye tout enfomasyon yo apre konvesyon yo
-# print(df.info())
-
-# Ajoute 1 kolon ki rele years_since_last_promotion
-current_year = pd.Timestamp.now().year
-df['years_since_last_promotion'] = current_year - df['last_promotion_year']
-
 #Repatisyon chak anplwaye nan chak depatman.
-dept_distribution = df['department'].value_counts()
-print(dept_distribution)
+repatisyon_depatman = df['department'].value_counts()
+print(repatisyon_depatman)
 
 # graf pou Repatisyon chak anplwaye nan chak depatman.
 plt.figure(figsize=(10, 6))
 sns.countplot(data=df, x='department')
-plt.title('Répartition de chaque employé dans chaque département')
-plt.xlabel('Département')
-plt.ylabel('Nombre d\'employés')
+plt.title('Repatisyon chak anplaye nn chak depatman')
+plt.xlabel('Depatman')
+plt.ylabel('Kantite anplwaye')
 plt.show()
 
 # Repatisyon pa sèks nan chak depatman.
-gender_dept_distribution = df.groupby(['department', 'gender']).size().unstack()
-print(gender_dept_distribution)
+repatisyon_seks_depatman = df.groupby(['department', 'gender']).size()
+print(repatisyon_seks_depatman)
 
 #graf pou Repatisyon pa sèks nan chak depatman.
 plt.figure(figsize=(10, 6))
 sns.countplot(data=df, x='department', hue='gender')
-plt.title('Répartition par sexe dans chaque département')
-plt.xlabel('Département')
-plt.ylabel('Nombre d\'employés')
+plt.title('Repatisyon par seks chak anplaye nn chak depatman')
+plt.xlabel('Depatman')
+plt.ylabel('Kantite anplwaye')
 plt.show()
 
 # Mwayèn laj anplwaye yo pou chak depatman.
-mean_age_by_dept = df.groupby('department')['age'].mean()
-print(mean_age_by_dept)
+laj_mwayen_anplaye = df.groupby('department')['age'].mean()
+print(laj_mwayen_anplaye)
 
 # graf pou Mwayèn laj anplwaye yo pou chak depatman.
 plt.figure(figsize=(10, 6))
-mean_age_by_dept.plot(kind='bar')
-plt.title('Âge moyen des salariés par département')
-plt.xlabel('Département')
-plt.ylabel('Âge moyen')
+laj_mwayen_anplaye.plot(kind='bar')
+plt.title('Laj mwayenn anplaye pou chak depatman')
+plt.xlabel('Depatman')
+plt.ylabel('laj mwayenn')
 plt.show()
 
-# Mwayèn salè nan chak depatman
-mean_salary_by_dept = df.groupby('department')['salary'].mean()
-print(mean_salary_by_dept)
+# salè Mwayèn nan chak depatman
+sale_mwayenn = df.groupby('department')['salary'].mean()
+print(sale_mwayenn)
 
 # graf pou Mwayèn salè nan chak depatman
 plt.figure(figsize=(10, 6))
-mean_salary_by_dept.plot(kind='bar')
-plt.title('Salaire moyen dans chaque département')
-plt.xlabel('Département')
-plt.ylabel('Salaire moyen')
+sale_mwayenn.plot(kind='bar')
+plt.title('Sale mwayenn nan chak deptaman')
+plt.xlabel('Depatman')
+plt.ylabel('Sale mwayenn ')
 plt.show()
 
 # Satisfaksyon travay sou chak depatman
-mean_job_satisfaction_by_dept = df.groupby('department')['job_satisfaction'].mean()
-print(mean_job_satisfaction_by_dept)
+satisfaksyon_travay = df.groupby('department')['job_satisfaction'].mean()
+print(satisfaksyon_travay)
 
 # graf pou Satisfaksyon travay sou chak depatman
 plt.figure(figsize=(10, 6))
-mean_job_satisfaction_by_dept.plot(kind='bar')
-plt.title('Satisfaction au travail dans chaque département')
-plt.xlabel('Département')
-plt.ylabel('Satisfaction moyenne')
+satisfaksyon_travay.plot(kind='bar')
+plt.title('Satisfaskyon nan travay chak depatman')
+plt.xlabel('Depatman')
+plt.ylabel('Mwayenn satisfaksyon')
 plt.show()
 
+
+# Moyenne de Temps Depuis la Dernière Promotion par Département
+ane_kouran = pd.to_datetime('today').year
+df['ane_dpi_denye_pwomosyon'] = ane_kouran - df['last_promotion_year']
 # Ki mwayèn tan ki genyen depi dènye fwa konpayi a te bay yon pwomosyon nan chak depatman?
-mean_years_since_last_promotion_by_dept = df.groupby('department')['years_since_last_promotion'].mean()
-print(mean_years_since_last_promotion_by_dept)
+mwayenn_tan_pwomosyon = df.groupby('department')['ane_dpi_denye_pwomosyon'].mean()
+print(mwayenn_tan_pwomosyon)
 
 # graf pou mwayèn tan ki genyen depi dènye fwa konpayi a te bay yon pwomosyon nan chak depatman
 plt.figure(figsize=(10, 6))
-mean_years_since_last_promotion_by_dept.plot(kind='bar')
-plt.title('Délai moyen depuis la dernière promotion par département')
-plt.xlabel('Département')
-plt.ylabel('Années depuis la dernière promotion')
+mwayenn_tan_pwomosyon.plot(kind='bar')
+plt.title('Mwayenn ane denye pwomosyon pa depatman')
+plt.xlabel('Depatman')
+plt.ylabel('Ane depi denye pwomosyon')
 plt.show()
 
-# Bay mwayèn salè ki ekziste an fonksyon de nivo edikasyon anplwaye yo (Bachelor, Master)
-mean_salary_by_education = df.groupby('education_level')['salary'].mean()
-print(mean_salary_by_education)
+#mwayenn sale an fonksyon de nivo edikasyon anplwaye yo (Bachelor, Master)
+mwayenn_sale = df.groupby('education_level')['salary'].mean()
+print(mwayenn_sale)
 
-# graf pou mwayèn salè ki ekziste an fonksyon de nivo edikasyon anplwaye yo (Bachelor, Master)
+# graf pou salè mwayèn ki ekziste an fonksyon de nivo edikasyon anplwaye yo (Bachelor, Master)
 plt.figure(figsize=(10, 6))
-mean_salary_by_education.plot(kind='bar')
-plt.title('Salaire moyen en fonction du niveau d\'éducation')
-plt.xlabel('Niveau d\'éducation')
-plt.ylabel('Salaire moyen')
+mwayenn_sale.plot(kind='bar')
+plt.title('Sale mwayenn pa nivo edikasyon')
+plt.xlabel('Nivo Edikasyon')
+plt.ylabel('Mwayenn_sale')
 plt.show()
 
-
-
-
-
-
-
-
-
-
-
+print(df)
 
 
 
